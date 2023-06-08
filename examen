@@ -1,0 +1,57 @@
+#!/bin/bash
+
+ext="SALIR"
+
+#Registro
+read -p "Ingrese su correo electrónico: " email
+read -p "Ingrese su contraseña: " pass
+#curl -X POST https://tierra-nativa-api.eium.com.mx/api/ordinario-so/signUp -H "Content-Type:application/json" -d '{"user":"'"$email"'","password":"'"$pass"'"}' > signup.json
+
+#Log in
+response=$(curl -X POST https://tierra-nativa-api.eium.com.mx/api/ordinario-so/logIn -H "Content-Type: application/json" -d '{"user":"'"$email"'","password":"'"$pass"'"}' > login.json)
+token=$(echo "$response" | jq -r ".token")
+
+if [ "$token" != "null" ]; then
+  echo "Inicio de sesión exitoso. Token: $token"
+else
+  echo "Credenciales incorrectas. No se puede acceder al programa."
+  exit 1
+fi
+
+#Guardar un producto
+echo "Ingrese los datos del producto (escriba 'SALIR' para finalizar):"
+while true; do
+  read -p "Nombre del producto: " name
+  if [ $name = $ext ]; then
+    break
+  fi
+  read -p "Descripción: " description
+  created_date=$(date +%Y-%m-%d)
+  read -p "Usuario (matrícula): " user
+  read -p "Precio: " price
+
+  #Endpoint para crear el producto
+  curl -X POST https://tierra-nativa-api.eium.com.mx/api/ordinario-so/create-product -H "Accept: aplication/json" -H "Content-Type: application/json" -H "Authorization: Bearer $token" -d '{"name":"'"$name"'","description":"'"$description"'","created_date":"'"$created_date"'","user":"'"$user"'","price":"'"$price"'"}'
+
+done
+
+#Guardar productos en archivo TXT
+current_datetime=$(date +"%Y-%m-%d_%H-%M-%S")
+filename="venta_productos_$current_datetime.txt"
+touch "$filename"
+echo "Productos guardados en $filename"
+
+#Hacer una copia del archivo de compra
+read -p "¿Desea hacer una copia de su archivo de compra? (SI/NO): " resp
+if [ "$resp" == "SI" ]; then
+  mkdir -p COMPRAS
+  cp "$filename" COMPRAS/
+  echo "Copia del archivo de compra realizada correctamente."
+fi
+
+#Crear un archivo automatizacion.sh
+automatizacion_script="#!/bin/bash
+
+#Obtener token de log in
+response=\$(curl -X POST https://tierra-nativa-api.eium.com.mx/api/ordinario-so/logIn -H \"Content-Type: application/json\" -d '{\"user\":\"$email\",\"password\":\"$password\"}')
+token=\$(echo \"\$response\" | jq -r '.
